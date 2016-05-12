@@ -17,6 +17,7 @@ import org.jboss.resteasy.spi.NotFoundException;
 import org.jboss.resteasy.spi.ReaderException;
 import org.jboss.resteasy.spi.Registry;
 import org.jboss.resteasy.spi.ResteasyProviderFactory;
+import org.jboss.resteasy.spi.UnauthorizedException;
 import org.jboss.resteasy.spi.UnhandledException;
 import org.jboss.resteasy.spi.WriterException;
 import org.jboss.resteasy.util.HttpHeaderNames;
@@ -256,6 +257,10 @@ public class SynchronousDispatcher implements Dispatcher
       {
          handleWebApplicationException(request, response, (WebApplicationException) e);
       }
+      else if (e instanceof UnauthorizedException)
+      {
+         handleUnauthorizedRequestFailure(request, response, (UnauthorizedException) e);
+      }
       else if (e instanceof Failure)
       {
          handleFailure(request, response, (Failure) e);
@@ -267,12 +272,24 @@ public class SynchronousDispatcher implements Dispatcher
       }
    }
 
+   private void handleUnauthorizedRequestFailure(HttpRequest request, HttpResponse response, UnauthorizedException failure)
+   {
+      LogMessages.LOGGER.failedExecutingDebug(request.getHttpMethod(), request.getUri().getPath(), failure);
+
+      composeResponseToFailure(request, response, failure);
+   }
+
    protected void handleFailure(HttpRequest request, HttpResponse response, Failure failure)
    {
       if (failure.isLoggable())
          LogMessages.LOGGER.failedExecutingError(request.getHttpMethod(), request.getUri().getPath(), failure);
       else LogMessages.LOGGER.failedExecutingDebug(request.getHttpMethod(), request.getUri().getPath(), failure);
 
+      composeResponseToFailure(request, response, failure);
+   }
+
+   private void composeResponseToFailure(HttpRequest request, HttpResponse response, Failure failure)
+   {
       if (failure.getResponse() != null)
       {
          writeFailure(request, response, failure.getResponse());
